@@ -65,12 +65,17 @@ class Util:
 
 
 class Flickr:
+
+    REST_BASE_URL = 'https://www.flickr.com/services/rest/'
+    PHOTOS_URL_TEMPLATE = "https://www.flickr.com/photos/{userid}/{photoid}"
+    PHOTOS_SHORTENED_URL_TEMPLATE = "https://flic.kr/p/{base58photoid}"
+
     def __init__(self, config):
         self.__apikey = config.get("flickr", "flickr.key")
         self.page_size = config.get("flickr", "flickr.page_size")
 
     def get_user_info(self, user_id):
-        resp = requests.get("https://www.flickr.com/services/rest/", params={
+        resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.people.getInfo",
             "api_key": self.__apikey,
             "user_id": user_id,
@@ -89,7 +94,7 @@ class Flickr:
         return user_info
 
     def get_photostream(self, user_id, page=1):
-        resp = requests.get("https://www.flickr.com/services/rest/", params={
+        resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.people.getPublicPhotos",
             "api_key": self.__apikey,
             "user_id": user_id,
@@ -110,14 +115,37 @@ class Flickr:
 
         return ps
 
+    def get_group_photos(self, group_id, page=1):
+        resp = requests.get(Flickr.REST_BASE_URL, params={
+            "method": "flickr.groups.pools.getPhotos",
+            "api_key": self.__apikey,
+            "group_id": group_id,
+            "format": "json",
+            "nojsoncallback": 1,
+            "extras": " url_sq,url_t,url_s,url_q,url_m,url_n,url_z,url_c,url_l,url_o,description,tags,owner_name,license",
+            "per_page": self.page_size,
+            "page": page
+        })
+
+        if resp.status_code != 200:
+            raise Exception("Error fetching Flickr group photo list. Status code: %s"%(resp.status_code))
+
+        ps = resp.json()
+
+        if ps["stat"] != "ok":
+            raise Exception("Error fetching Flickr group photo list. Reason: %s"%ps["message"])
+
+        return ps
+
+
     @staticmethod
     def make_image_link(image):
-        return "https://www.flickr.com/photos/{userid}/{photoid}".format(userid=image["owner"],
+        return Flickr.PHOTOS_URL_TEMPLATE.format(userid=image["owner"],
                                                                          photoid=image["id"])
 
     @staticmethod
     def make_shortened_image_link(image):
-        return "https://flic.kr/p/{base58photoid}".format(base58photoid=Util.encode_base58(int(image["id"])))
+        return Flickr.PHOTOS_SHORTENED_URL_TEMPLATE.format(base58photoid=Util.encode_base58(int(image["id"])))
 
 
 class Twitter:
