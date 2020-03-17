@@ -97,7 +97,7 @@ random_page = random.randint(0, int(math.ceil(float(num_photos)/100.0)))
 
 ps_page = get_flickr_photostream(apikey, flickr_id, random_page)
 num_images = len(ps_page["photos"]["photo"])
-random_image_num = random.randint(0, num_images)
+random_image_num = random.randint(0, num_images - 1)
 random_image = ps_page["photos"]["photo"][random_image_num]
 
 image_link = "https://www.flickr.com/photos/{userid}/{photoid}".format(userid=random_image["owner"],photoid=random_image["id"])
