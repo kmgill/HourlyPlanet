@@ -104,7 +104,7 @@ image_link = "https://www.flickr.com/photos/{userid}/{photoid}".format(userid=ra
 shortened_image_link = "https://flic.kr/p/{base58photoid}".format(base58photoid=encode_base58(int(random_image["id"])))
 
 image_title = random_image["title"]
-fetch_image_to_path(random_image["url_m"], "image.jpg")
+fetch_image_to_path(random_image["url_z"], "image.jpg")
 
 api = TwitterAPI(config.get("twitter", "twitter.consumer_key"),
                  config.get("twitter", "twitter.consumer_secret"),
