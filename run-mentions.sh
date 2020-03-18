@@ -8,4 +8,4 @@ if [ -f "last_mention_id.txt" ]; then
     sinceid=`cat last_mention_id.txt`
 fi
 
-python hourlyplanet.py -r -s $sinceid -w last_mention_id.txt
+python hourlyplanet.py -r -s $sinceid -w last_mention_id.txt $@
