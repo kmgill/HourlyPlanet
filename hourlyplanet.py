@@ -23,6 +23,7 @@ import json
 from TwitterAPI import TwitterAPI
 import argparse
 import re
+import yaml
 import random
 random.seed()
 
@@ -140,6 +141,47 @@ class Flickr:
 
         return ps
 
+    def get_album_info(self, user_id, photoset_id):
+        resp = requests.get(Flickr.REST_BASE_URL, params={
+            "method": "flickr.photosets.getInfo",
+            "api_key": self.__apikey,
+            "user_id": user_id,
+            "photoset_id": photoset_id,
+            "format": "json",
+            "nojsoncallback": 1
+        })
+        if resp.status_code != 200:
+            raise Exception("Error fetching Flickr album info. Status code: %s"%(resp.status_code))
+
+        ps = resp.json()
+
+        if ps["stat"] != "ok":
+            raise Exception("Error fetching Flickr album info. Reason: %s"%ps["message"])
+
+        return ps
+
+    def get_album_photos(self, user_id, photoset_id, page=1):
+        resp = requests.get(Flickr.REST_BASE_URL, params={
+            "method": "flickr.photosets.getPhotos",
+            "api_key": self.__apikey,
+            "user_id": user_id,
+            "photoset_id": photoset_id,
+            "format": "json",
+            "nojsoncallback": 1,
+            "extras": " url_sq,url_t,url_s,url_q,url_m,url_n,url_z,url_c,url_l,url_o,description,tags,owner_name,license",
+            "per_page": self.page_size,
+            "page": page
+        })
+
+        if resp.status_code != 200:
+            raise Exception("Error fetching Flickr album photo list. Status code: %s"%(resp.status_code))
+
+        ps = resp.json()
+
+        if ps["stat"] != "ok":
+            raise Exception("Error fetching Flickr album photo list. Reason: %s"%ps["message"])
+
+        return ps
 
     @staticmethod
     def make_image_link(image):
@@ -159,7 +201,9 @@ class Twitter:
                                 config.get("twitter", "twitter.access_token"),
                                 config.get("twitter", "twitter.access_secret"))
 
-    def tweet_image(self, title, username, twitter_id, shortened_image_link, imagePath="image.jpg", respond_to_user=None, respond_to_id=None):
+    def tweet_image(self, title, source, shortened_image_link, imagePath="image.jpg", respond_to_user=None, respond_to_id=None):
+        username = source.get_flickr_username()
+        twitter_id = source.get_twitter_id()
 
         if respond_to_user is None:
             text = "%s - From %s (%s) - %s"%(title, username, twitter_id, shortened_image_link)
@@ -190,6 +234,105 @@ class Twitter:
 
 
 
+class Source:
+
+    def __init__(self, source, flickr):
+        self.__source = source
+        self.__flickr = flickr
+
+        try:
+            self.__user_info = flickr.get_user_info(self.get_flickr_id())
+        except:
+            print("Failed to retrieve user information from Flickr")
+            traceback.print_exc()
+            raise Exception()
+
+    def pick_random_album_in_source(self):
+        if "albums" not in self.source:
+            raise Exception("No albums found for source")
+
+        return self.source["albums"][random.randint(0, len(self.source["albums"]) - 1)]
+
+    def get_twitter_id(self):
+        return self.__source["twitter_id"]
+
+    def get_flickr_id(self):
+        return self.__source["flickr_id"]
+
+    def get_flickr_username(self):
+        if self.__user_info["person"]["realname"]["_content"] is None or len(self.__user_info["person"]["realname"]["_content"]) == 0:
+            return self.__user_info["person"]["username"]["_content"]
+        else:
+            return self.__user_info["person"]["realname"]["_content"]
+
+    def user_has_albums(self):
+        return "albums" in self.__source and len(self.__source["albums"]) > 0
+
+    def get_random_album(self):
+        if not self.user_has_albums():
+            raise Exception("Cannot get random album if user has not albums.")
+        random_album_id = self.__source["albums"][random.randint(0, len(self.__source["albums"]) - 1)]
+        album_info = self.__flickr.get_album_info(self.get_flickr_id(), random_album_id)
+        return album_info
+
+    def get_random_image(self):
+        if self.user_has_albums():
+            album_info = self.get_random_album()
+            random_image = self.get_random_album_image(album_info)
+        else:
+            random_image = self.get_random_photoset_image()
+
+        return random_image
+
+    def get_random_photoset_image(self):
+        num_photos = self.__user_info["person"]["photos"]["count"]["_content"]
+        random_page = random.randint(0, int(math.ceil(float(num_photos) / float(flickr.page_size))))
+        user_name = self.get_flickr_username()
+
+        print("Flickr user %s has %s images, selected page %s" % (user_name, num_photos, random_page))
+
+        try:
+            ps_page = self.__flickr.get_photostream(self.__user_info["person"]["id"], random_page)
+        except:
+            print("Failed to retrieve user Photostream from Flickr")
+            traceback.print_exc()
+            raise Exception("Failed to retrieve user Photostream from Flickr")
+
+        num_images = len(ps_page["photos"]["photo"])
+        if num_images == 0:
+            print("Page has zero images, cannot continue")
+            raise Exception("Page has zero images, cannot continue")
+
+        random_image_num = random.randint(0, num_images - 1)
+        random_image = ps_page["photos"]["photo"][random_image_num]
+
+        return random_image
+
+    def get_random_album_image(self, album_info):
+        num_photos = album_info["photoset"]["photos"]
+        random_page = random.randint(0, int(math.ceil(float(num_photos) / float(self.__flickr.page_size))))
+
+        user_name = self.get_flickr_username()
+        album_name = album_info["photoset"]["title"]["_content"]
+        print("Flickr album %s for user %s has %s images, selected page %s" % (
+        album_name, user_name, num_photos, random_page))
+
+        try:
+            al_page = self.__flickr.get_album_photos(self.__user_info["person"]["id"], album_info["photoset"]["id"], random_page)
+        except:
+            print("Failed to retrieve user album from Flickr")
+            raise Exception("Failed to retrieve user album from Flickr")
+
+        num_images = len(al_page["photoset"]["photo"])
+        if num_images == 0:
+            print("Page has zero images, cannot continue")
+            raise Exception("Page has zero images, cannot continue")
+
+        random_image_num = random.randint(0, num_images - 1)
+        random_image = al_page["photoset"]["photo"][random_image_num]
+
+        return random_image
+
 
 def get_random_person(config, flickr):
     """
@@ -215,40 +358,13 @@ def get_random_person(config, flickr):
 
     return flickr_id, twitter_id, user_info
 
-def get_random_image(user_info, flickr):
-    num_photos = user_info["person"]["photos"]["count"]["_content"]
-    random_page = random.randint(0, int(math.ceil(float(num_photos) / float(flickr.page_size))))
-    user_name = user_info["person"]["realname"]["_content"]
 
-    print("Flickr user %s has %s images, selected page %s" % (user_name, num_photos, random_page))
+def find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=None, respond_to_id=None):
+    source = get_random_source(sources)
+    random_image = source.get_random_image()
 
-    try:
-        ps_page = flickr.get_photostream(user_info["person"]["id"], random_page)
-    except:
-        print("Failed to retrieve user Photostream from Flickr")
-        traceback.print_exc()
-        sys.exit(1)
+    print("Selected Flickr ID: %s, Twitter User: %s" % (source.get_flickr_id(), source.get_twitter_id()))
 
-    num_images = len(ps_page["photos"]["photo"])
-    if num_images == 0:
-        print("Page has zero images, cannot continue")
-        sys.exit(1)
-
-    random_image_num = random.randint(0, num_images - 1)
-    random_image = ps_page["photos"]["photo"][random_image_num]
-
-    return random_image
-
-def find_and_tweet_image(config, flickr, twitter, respond_to_user=None, respond_to_id=None):
-
-
-    flickr_id, twitter_id, user_info = get_random_person(config, flickr)
-    print("Selected Flickr ID: %s, Twitter User: %s" % (flickr_id, twitter_id))
-
-    random_image = get_random_image(user_info, flickr)
-
-    user_name = user_info["person"]["realname"]["_content"]
-    #image_link = flickr.make_image_link(random_image)
     shortened_image_link = flickr.make_shortened_image_link(random_image)
     image_url = random_image[config.get("flickr", "flickr.image_url_attribute")]
     image_title = random_image["title"]
@@ -256,10 +372,10 @@ def find_and_tweet_image(config, flickr, twitter, respond_to_user=None, respond_
     print("Selected image '%s' at %s" % (image_title, image_url))
     Util.fetch_image_to_path(image_url, "image.jpg")
 
-    twitter.tweet_image(image_title, user_name, twitter_id, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+    twitter.tweet_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
 
 
-def respond_to_mentions(config, flickr, twitter, since_id=None):
+def respond_to_mentions(config, sources, flickr, twitter, since_id=None):
     mentions = twitter.get_mentions(since_id=since_id)
 
     id = 0
@@ -275,9 +391,28 @@ def respond_to_mentions(config, flickr, twitter, since_id=None):
         if "please" in mention_text:
             respond_to_id = mention["id"]
             respond_to_user = "@%s"%mention["user"]["screen_name"]
-            find_and_tweet_image(config, flickr, twitter, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+            find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
     return id
 
+
+def load_sources(source_file, flickr):
+    sources = []
+    with open(source_file) as f:
+        d = f.read()
+        sources_raw = yaml.load(d)
+        for source_raw in sources_raw["sources"]:
+            if "disabled" in source_raw and source_raw["disabled"] is True:
+                continue
+            sources.append(Source(source_raw, flickr))
+
+    return sources
+
+
+def get_random_source(sources):
+    if sources is None or len(sources) == 0:
+        raise Exception("No sources found")
+
+    return sources[random.randint(0, len(sources) - 1)]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -286,8 +421,8 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--post", help="Post as status update", action="store_true")
     parser.add_argument("-s", "--sinceid", help="Most recent known mention id", required=False, type=int)
     parser.add_argument("-w", "--writeidto", help="Write most recent mention id to file", required=False, type=str)
+    parser.add_argument("-S", "--sources", help="Specify an alternate sources yaml file", required=False, type=str, default="sources.yaml")
     args = parser.parse_args()
-
 
     config = ConfigParser.RawConfigParser()
     config.read(args.config)
@@ -295,15 +430,16 @@ if __name__ == "__main__":
     flickr = Flickr(config)
     twitter = Twitter(config)
 
+    sources = load_sources(args.sources, flickr)
+
     if args.respond is True:
-        last_id = respond_to_mentions(config, flickr, twitter, since_id=args.sinceid)
+        last_id = respond_to_mentions(config, sources, flickr, twitter, since_id=args.sinceid)
         if last_id is not None and last_id > 0:
             print last_id
             if args.writeidto is not None:
                 with open(args.writeidto, "w") as f:
                     f.write(str(last_id))
 
-
     if args.post is True:
-        find_and_tweet_image(config, flickr, twitter)
+        find_and_tweet_image(config, sources, flickr, twitter)
 
