@@ -22,6 +22,7 @@ import traceback
 import json
 from TwitterAPI import TwitterAPI
 import argparse
+import re
 import random
 random.seed()
 
@@ -265,7 +266,13 @@ def respond_to_mentions(config, flickr, twitter, since_id=None):
     for mention in mentions:
         if mention["id"] > id:
             id = mention["id"]
-        if "please" in mention["text"].lower():
+        mention_text = mention["text"].lower()
+        mention_text = re.sub('p+', 'p', mention_text)
+        mention_text = re.sub('l+', 'l', mention_text)
+        mention_text = re.sub('e+', 'e', mention_text)
+        mention_text = re.sub('a+', 'a', mention_text)
+        mention_text = re.sub('s+', 's', mention_text)
+        if "please" in mention_text:
             respond_to_id = mention["id"]
             respond_to_user = "@%s"%mention["user"]["screen_name"]
             find_and_tweet_image(config, flickr, twitter, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
