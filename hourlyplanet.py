@@ -19,7 +19,9 @@ import requests
 import ConfigParser
 import math
 import traceback
+import json
 from TwitterAPI import TwitterAPI
+import argparse
 import random
 random.seed()
 
@@ -156,8 +158,12 @@ class Twitter:
                                 config.get("twitter", "twitter.access_token"),
                                 config.get("twitter", "twitter.access_secret"))
 
-    def tweet_image(self, title, username, twitter_id, shortened_image_link, imagePath="image.jpg"):
-        text = "%s - From %s (%s) - %s"%(title, username, twitter_id, shortened_image_link)
+    def tweet_image(self, title, username, twitter_id, shortened_image_link, imagePath="image.jpg", respond_to_user=None, respond_to_id=None):
+
+        if respond_to_user is None:
+            text = "%s - From %s (%s) - %s"%(title, username, twitter_id, shortened_image_link)
+        else:
+            text = "Hi, %s\n\n%s - From %s (%s) - %s" % (respond_to_user, title, username, twitter_id, shortened_image_link)
 
         data = Util.load_image_data(imagePath)
 
@@ -166,12 +172,25 @@ class Twitter:
 
         if r.status_code == 200:
             media_id = r.json()['media_id']
-            r = self.__api.request('statuses/update', {'status': text, 'media_ids': media_id})
+            r = self.__api.request('statuses/update', {'status': text, 'media_ids': media_id, 'in_reply_to_status_id': respond_to_id})
             print('UPDATE STATUS SUCCESS' if r.status_code == 200 else 'UPDATE STATUS FAILURE: ' + r.text)
 
+    def get_mentions(self, since_id=None, count=100):
 
-def main(config):
+        params = {'count':count}
+        if since_id is not None and since_id > 0:
+            params["since_id"] = since_id
 
+        r = self.__api.request('statuses/mentions_timeline', params)
+        if r.status_code != 200:
+            print('retrieval failure: ' + r.text)
+            raise Exception('retrieval failure: ' + r.text)
+        return r.json()
+
+
+
+
+def get_random_person(config, flickr):
     """
     User Ids need to be a comma delimited list, no spaces. Each is is a colon (:) delimited list of Flickr ID and Twitter username
     Example:
@@ -186,9 +205,6 @@ def main(config):
     flickr_id = user_id.split(":")[0]
     twitter_id = user_id.split(":")[1]
 
-    print("Selected Flickr ID: %s, Twitter User: %s" % (flickr_id, twitter_id))
-
-    flickr = Flickr(config)
     try:
         user_info = flickr.get_user_info(flickr_id)
     except:
@@ -196,14 +212,17 @@ def main(config):
         traceback.print_exc()
         sys.exit(1)
 
-    user_name = user_info["person"]["realname"]["_content"]
+    return flickr_id, twitter_id, user_info
+
+def get_random_image(user_info, flickr):
     num_photos = user_info["person"]["photos"]["count"]["_content"]
     random_page = random.randint(0, int(math.ceil(float(num_photos) / float(flickr.page_size))))
+    user_name = user_info["person"]["realname"]["_content"]
 
     print("Flickr user %s has %s images, selected page %s" % (user_name, num_photos, random_page))
 
     try:
-        ps_page = flickr.get_photostream(flickr_id, random_page)
+        ps_page = flickr.get_photostream(user_info["person"]["id"], random_page)
     except:
         print("Failed to retrieve user Photostream from Flickr")
         traceback.print_exc()
@@ -217,22 +236,67 @@ def main(config):
     random_image_num = random.randint(0, num_images - 1)
     random_image = ps_page["photos"]["photo"][random_image_num]
 
+    return random_image
+
+def find_and_tweet_image(config, flickr, twitter, respond_to_user=None, respond_to_id=None):
+
+
+    flickr_id, twitter_id, user_info = get_random_person(config, flickr)
+    print("Selected Flickr ID: %s, Twitter User: %s" % (flickr_id, twitter_id))
+
+    random_image = get_random_image(user_info, flickr)
+
+    user_name = user_info["person"]["realname"]["_content"]
     #image_link = flickr.make_image_link(random_image)
     shortened_image_link = flickr.make_shortened_image_link(random_image)
     image_url = random_image[config.get("flickr", "flickr.image_url_attribute")]
     image_title = random_image["title"]
 
-    print("Selected image #%s '%s' at %s" % (random_image_num, image_title, image_url))
+    print("Selected image '%s' at %s" % (image_title, image_url))
     Util.fetch_image_to_path(image_url, "image.jpg")
 
-    twitter = Twitter(config)
-    twitter.tweet_image(image_title, user_name, twitter_id, shortened_image_link)
+    twitter.tweet_image(image_title, user_name, twitter_id, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+
+
+def respond_to_mentions(config, flickr, twitter, since_id=None):
+    mentions = twitter.get_mentions(since_id=since_id)
+
+    id = 0
+    for mention in mentions:
+        if mention["id"] > id:
+            id = mention["id"]
+        if "please" in mention["text"].lower():
+            respond_to_id = mention["id"]
+            respond_to_user = "@%s"%mention["user"]["screen_name"]
+            find_and_tweet_image(config, flickr, twitter, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+    return id
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config", help="Specify an alternate configuration file", required=False, type=str, default="config.ini")
+    parser.add_argument("-r", "--respond", help="Respond to Twitter mentions", action="store_true")
+    parser.add_argument("-p", "--post", help="Post as status update", action="store_true")
+    parser.add_argument("-s", "--sinceid", help="Most recent known mention id", required=False, type=int)
+    parser.add_argument("-w", "--writeidto", help="Write most recent mention id to file", required=False, type=str)
+    args = parser.parse_args()
+
 
     config = ConfigParser.RawConfigParser()
-    config.read('config.ini')
+    config.read(args.config)
 
-    main(config)
+    flickr = Flickr(config)
+    twitter = Twitter(config)
+
+    if args.respond is True:
+        last_id = respond_to_mentions(config, flickr, twitter, since_id=args.sinceid)
+        if last_id is not None and last_id > 0:
+            print last_id
+            if args.writeidto is not None:
+                with open(args.writeidto, "w") as f:
+                    f.write(str(last_id))
+
+
+    if args.post is True:
+        find_and_tweet_image(config, flickr, twitter)
 
