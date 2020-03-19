@@ -78,6 +78,15 @@ class Flickr:
         self.__apikey = config.get("flickr", "flickr.key")
         self.page_size = config.get("flickr", "flickr.page_size")
 
+    def verify_credentials(self):
+        resp = requests.get(Flickr.REST_BASE_URL, params={
+            "method": "flickr.test.echo",
+            "api_key": self.__apikey,
+            "format": "json",
+            "nojsoncallback": 1
+        })
+        return resp.status_code == 200
+
     def get_user_info(self, user_id):
         resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.people.getInfo",
@@ -200,6 +209,18 @@ class Twitter:
                                 config.get("twitter", "twitter.consumer_secret"),
                                 config.get("twitter", "twitter.access_token"),
                                 config.get("twitter", "twitter.access_secret"))
+
+    def verify_credentials(self):
+        r = self.__api.request('account/verify_credentials')
+        return r.status_code == 200
+
+    def tweet_text(self, status, respond_to_user=None, respond_to_id=None):
+        if respond_to_user is not None:
+            status = "Hi, %s\n\n%s"%(respond_to_user, status)
+        r = self.__api.request('statuses/update',
+                               {'status': status, 'in_reply_to_status_id': respond_to_id})
+        print('UPDATE STATUS SUCCESS' if r.status_code == 200 else 'UPDATE STATUS FAILURE: ' + r.text)
+
 
     def tweet_image(self, title, source, shortened_image_link, imagePath="image.jpg", respond_to_user=None, respond_to_id=None):
         username = source.get_flickr_username()
@@ -388,10 +409,13 @@ def respond_to_mentions(config, sources, flickr, twitter, since_id=None):
         mention_text = re.sub('e+', 'e', mention_text)
         mention_text = re.sub('a+', 'a', mention_text)
         mention_text = re.sub('s+', 's', mention_text)
+        respond_to_id = mention["id"]
+        respond_to_user = "@%s" % mention["user"]["screen_name"]
         if "please" in mention_text:
-            respond_to_id = mention["id"]
-            respond_to_user = "@%s"%mention["user"]["screen_name"]
             find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+        if "status check" in mention_text:
+            status = validate()
+            twitter.tweet_text(status, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
     return id
 
 
@@ -414,6 +438,47 @@ def get_random_source(sources):
 
     return sources[random.randint(0, len(sources) - 1)]
 
+
+def validate():
+    conditions = []
+
+    try:
+        config = ConfigParser.RawConfigParser()
+        config.read(args.config)
+        conditions.append("Configuration: OK")
+    except:
+        conditions.append("Configuration: FAIL")
+
+    try:
+        flickr = Flickr(config)
+        conditions.append("Flickr: OK")
+    except:
+        conditions.append("Flickr: FAIL")
+
+    if flickr.verify_credentials():
+        conditions.append("Flickr Test: OK")
+    else:
+        conditions.append("Flickr Test: FAIL")
+
+    try:
+        sources = load_sources(args.sources, flickr)
+        conditions.append("Sources: OK")
+    except:
+        conditions.append("Sources: FAIL")
+
+    try:
+        twitter = Twitter(config)
+        conditions.append("Twitter: OK")
+    except:
+        conditions.append("Twitter: FAIL")
+
+    if twitter.verify_credentials():
+        conditions.append("Twitter Test: OK")
+    else:
+        conditions.append("Twitter Test: FAIL")
+
+    return "\n".join(conditions)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", help="Specify an alternate configuration file", required=False, type=str, default="config.ini")
@@ -422,7 +487,12 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--sinceid", help="Most recent known mention id", required=False, type=int)
     parser.add_argument("-w", "--writeidto", help="Write most recent mention id to file", required=False, type=str)
     parser.add_argument("-S", "--sources", help="Specify an alternate sources yaml file", required=False, type=str, default="sources.yaml")
+    parser.add_argument("-t", "--test", help="Run a status check", action="store_true")
     args = parser.parse_args()
+
+    if args.test:
+        print(validate())
+        sys.exit(0)
 
     config = ConfigParser.RawConfigParser()
     config.read(args.config)
