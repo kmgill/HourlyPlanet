@@ -399,7 +399,7 @@ def find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=None,
     print("Selected image '%s' at %s" % (image_title, image_url))
     Util.fetch_image_to_path(image_url, "image.jpg")
 
-    twitter.tweet_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+    #twitter.tweet_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
 
 
 def check_translations(translations, mention_text):
@@ -413,7 +413,7 @@ def check_translations(translations, mention_text):
 def respond_to_mentions(config, sources, translations, flickr, twitter, since_id=None):
     mentions = twitter.get_mentions(since_id=since_id)
 
-    id = 0
+    id = since_id
     for mention in mentions:
         if mention["id"] > id:
             id = mention["id"]
@@ -425,10 +425,9 @@ def respond_to_mentions(config, sources, translations, flickr, twitter, since_id
         mention_text = re.sub('s+', 's', mention_text)
         respond_to_id = mention["id"]
         respond_to_user = "@%s" % mention["user"]["screen_name"]
-        if check_translations(translations, mention_text):
-            print mention_text
+        if check_translations(translations, mention_text) and mention["id"] > since_id:
             find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
-        if "status check" in mention_text:
+        if "status check" in mention_text and mention["id"] > since_id:
             status = validate()
             twitter.tweet_text(status, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
     return id
