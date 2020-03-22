@@ -2,12 +2,17 @@ translations:
   please:
     - "please"            # English
     - "merci"             # French
-    - "S'il vous plaît"   # French    (Google Translate)
+    - "S'il vous plaît"   # French                 (Google Translate)
     - "bitte"             # German
-    - "por favor"         # Spanish   (Google Translate)
-    - "per favore"        # Italian   (Google Translate)
-    - "пожалуйста"        # Russian   (Google Translate)
-    - "お願いします"        # Japanese  (Google Translate)
-    - "कृप्या"               # Hindi     (Google Translate)
+    - "por favor"         # Spanish                (Google Translate)
+    - "per favore"        # Italian                (Google Translate)
+    - "пожалуйста"        # Russian                (Google Translate)
+    - "お願いします"        # Japanese               (Google Translate)
+    - "कृप्या"               # Hindi                  (Google Translate)
     - "رجاءً"              # Arabic
     - "אנא"               # Hebrew
+    - "kérem"             # Hungarian              (Google Translate)
+    - "lütfen"            # Turkish                (Google Translate)
+    - "தயவு செய்து"        # Tamil                  (Google Translate)
+    - "请"                # Simplified Chinese     (Google Translate)
+    - "請"                # Traditional Chinese    (Google Translate)
