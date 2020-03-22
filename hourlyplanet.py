@@ -387,7 +387,13 @@ def find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=None,
     print("Selected Flickr ID: %s, Twitter User: %s" % (source.get_flickr_id(), source.get_twitter_id()))
 
     shortened_image_link = flickr.make_shortened_image_link(random_image)
-    image_url = random_image[config.get("flickr", "flickr.image_url_attribute")]
+
+    image_url_attribute = config.get("flickr", "flickr.image_url_attribute")
+    if image_url_attribute in random_image:
+        image_url = random_image[image_url_attribute]
+    else:
+        image_url = random_image["url_m"]
+
     image_title = random_image["title"]
 
     print("Selected image '%s' at %s" % (image_title, image_url))
@@ -420,6 +426,7 @@ def respond_to_mentions(config, sources, translations, flickr, twitter, since_id
         respond_to_id = mention["id"]
         respond_to_user = "@%s" % mention["user"]["screen_name"]
         if check_translations(translations, mention_text):
+            print mention_text
             find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
         if "status check" in mention_text:
             status = validate()
