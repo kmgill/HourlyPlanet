@@ -1,0 +1,10 @@
+translations:
+  please:
+    - "please"        # English
+    - "merci"         # French
+    - "bitte"         # German
+    - "por favor"     # Spanish   (Google Translate)
+    - "per favore"    # Italian   (Google Translate)
+    - "пожалуйста"    # Russian   (Google Translate)
+    - "お願いします"    # Japanese  (Google Translate)
+    - "कृप्या"           # Hindi     (Google Translate)

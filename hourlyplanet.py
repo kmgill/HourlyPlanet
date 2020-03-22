@@ -396,7 +396,15 @@ def find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=None,
     twitter.tweet_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
 
 
-def respond_to_mentions(config, sources, flickr, twitter, since_id=None):
+def check_translations(translations, mention_text):
+    for please in translations["translations"]["please"]:
+        please = please.lower()
+        if please in mention_text:
+            return True
+    return False
+
+
+def respond_to_mentions(config, sources, translations, flickr, twitter, since_id=None):
     mentions = twitter.get_mentions(since_id=since_id)
 
     id = 0
@@ -411,7 +419,7 @@ def respond_to_mentions(config, sources, flickr, twitter, since_id=None):
         mention_text = re.sub('s+', 's', mention_text)
         respond_to_id = mention["id"]
         respond_to_user = "@%s" % mention["user"]["screen_name"]
-        if "please" in mention_text:
+        if check_translations(translations, mention_text):
             find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
         if "status check" in mention_text:
             status = validate()
@@ -431,6 +439,12 @@ def load_sources(source_file, flickr):
 
     return sources
 
+
+def load_translations(translations_file):
+    with open(translations_file) as f:
+        d = f.read()
+        translations = yaml.load(d)
+    return translations
 
 def get_random_source(sources):
     if sources is None or len(sources) == 0:
@@ -461,6 +475,12 @@ def validate():
         conditions.append("Flickr Test: FAIL")
 
     try:
+        translations = load_translations(args.translations)
+        conditions.append("Translations: OK")
+    except:
+        conditions.append("Translations: FAIL")
+
+    try:
         sources = load_sources(args.sources, flickr)
         conditions.append("Sources: OK")
     except:
@@ -488,6 +508,7 @@ if __name__ == "__main__":
     parser.add_argument("-w", "--writeidto", help="Write most recent mention id to file", required=False, type=str)
     parser.add_argument("-S", "--sources", help="Specify an alternate sources yaml file", required=False, type=str, default="sources.yaml")
     parser.add_argument("-t", "--test", help="Run a status check", action="store_true")
+    parser.add_argument("-i", "--translations", help="Specify an alternate translations yaml file", required=False, type=str, default="translations.yaml")
     args = parser.parse_args()
 
     if args.test:
@@ -501,9 +522,10 @@ if __name__ == "__main__":
     twitter = Twitter(config)
 
     sources = load_sources(args.sources, flickr)
+    translations = load_translations(args.translations)
 
     if args.respond is True:
-        last_id = respond_to_mentions(config, sources, flickr, twitter, since_id=args.sinceid)
+        last_id = respond_to_mentions(config, sources, translations, flickr, twitter, since_id=args.sinceid)
         if last_id is not None and last_id > 0:
             print last_id
             if args.writeidto is not None:
