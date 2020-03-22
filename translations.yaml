@@ -11,6 +11,7 @@ translations:
     - "कृप्या"               # Hindi                  (Google Translate)
     - "رجاءً"              # Arabic
     - "אנא"               # Hebrew
+    - "בבקשה"            # Hebrew
     - "kérem"             # Hungarian              (Google Translate)
     - "lütfen"            # Turkish                (Google Translate)
     - "தயவு செய்து"        # Tamil                  (Google Translate)
@@ -20,3 +21,4 @@ translations:
     - "እባክህ"             # Ebakih
     - "እባክሽ"             # Ebakih
     - "te rog"            # Romanian
+    - "nuqneh"            # Klingon                 (translator.eu)
