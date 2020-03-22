@@ -399,7 +399,7 @@ def find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=None,
     print("Selected image '%s' at %s" % (image_title, image_url))
     Util.fetch_image_to_path(image_url, "image.jpg")
 
-    #twitter.tweet_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+    twitter.tweet_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
 
 
 def check_translations(translations, mention_text):
