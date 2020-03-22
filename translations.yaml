@@ -3,6 +3,7 @@ translations:
     - "please"            # English
     - "merci"             # French
     - "S'il vous plaît"   # French                 (Google Translate)
+    - "S'il vous plait"   # French
     - "bitte"             # German
     - "por favor"         # Spanish                (Google Translate)
     - "per favore"        # Italian                (Google Translate)
