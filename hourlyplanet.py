@@ -439,16 +439,20 @@ def get_random_person(config, flickr):
 
 def find_and_tweet_image(config, sources, flickr, twitter, search_term=None, respond_to_user=None, respond_to_id=None):
 
-    # TODO: Move the retry count to the config
-    for i in range(0, 5):
-        source = get_random_source(sources)
-
-        if search_term is None:
-            random_image = source.get_random_image()
-        else:
+    source = None
+    random_image = None
+    if search_term is not None:
+        # TODO: Move the retry count to the config
+        for i in range(0, 5):
+            source = get_random_source(sources)
             random_image = source.get_random_search_image(text=search_term)
-        if source is not None and random_image is not None:
-            break
+            if source is not None and random_image is not None:
+                break
+
+    # If there was no search term or a search yielded no images
+    if source is None or random_image is None:
+        source = get_random_source(sources)
+        random_image = source.get_random_image()
 
     if random_image is None:
         raise Exception("No images found")
@@ -468,7 +472,7 @@ def find_and_tweet_image(config, sources, flickr, twitter, search_term=None, res
     print("Selected image '%s' at %s" % (image_title, image_url))
     Util.fetch_image_to_path(image_url, "image.jpg")
 
-    twitter.tweet_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+    twitter.tweet_image(image_title, source, shortened_image_link, search_term=search_term, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
 
 
 def check_translations(translations, mention_text):
@@ -495,6 +499,8 @@ def respond_to_mentions(config, sources, translations, flickr, twitter, since_id
     for mention in mentions:
         if mention["id"] > id:
             id = mention["id"]
+
+        orig_mention_text = mention_text
         mention_text = mention["text"].lower()
         mention_text = re.sub('p+', 'p', mention_text)
         mention_text = re.sub('l+', 'l', mention_text)
@@ -504,6 +510,7 @@ def respond_to_mentions(config, sources, translations, flickr, twitter, since_id
         respond_to_id = mention["id"]
         respond_to_user = "@%s" % mention["user"]["screen_name"]
         if check_translations(translations, mention_text) and mention["id"] > since_id:
+            search_term = isolate_search_term(orig_mention_text)
             find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
         if "status check" in mention_text and mention["id"] > since_id:
             status = validate()
