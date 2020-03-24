@@ -106,6 +106,34 @@ class Flickr:
 
         return user_info
 
+    def search_user_photos(self, user_id, text, page=1, page_size=None):
+        if text is None or len(text) == 0:
+            raise Exception("Invalid zero-length search term used.")
+
+        if page_size is None:
+            page_size = self.page_size
+
+        resp = requests.get(Flickr.REST_BASE_URL, params={
+            "method": "flickr.photos.search",
+            "api_key": self.__apikey,
+            "user_id": user_id,
+            "text": text,
+            "format": "json",
+            "nojsoncallback": 1,
+            "extras": " url_sq,url_t,url_s,url_q,url_m,url_n,url_z,url_c,url_l,url_o,description,tags,owner_name",
+            "per_page": page_size,
+            "page": page
+        })
+        if resp.status_code != 200:
+            raise Exception("Error fetching Flickr search list. Status code: %s"%(resp.status_code))
+
+        ps = resp.json()
+
+        if ps["stat"] != "ok":
+            raise Exception("Error fetching Flickr search. Reason: %s"%ps["message"])
+
+        return ps
+
     def get_photostream(self, user_id, page=1):
         resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.people.getPublicPhotos",
@@ -292,6 +320,10 @@ class Source:
     def get_random_album(self):
         if not self.user_has_albums():
             raise Exception("Cannot get random album if user has not albums.")
+
+        if len(self.__source["albums"]) == 0:
+            raise Exception("User has no albums")
+
         random_album_id = self.__source["albums"][random.randint(0, len(self.__source["albums"]) - 1)]
         album_info = self.__flickr.get_album_info(self.get_flickr_id(), random_album_id)
         return album_info
@@ -304,6 +336,31 @@ class Source:
             random_image = self.get_random_photoset_image()
 
         return random_image
+
+    def get_random_search_image(self, text):
+        search_photos = self.__flickr.search_user_photos(self.get_flickr_id(), text, page_size=0)
+        num_photos = int(search_photos["photos"]["total"])
+        random_page = random.randint(0, int(math.ceil(float(num_photos) / float(flickr.page_size))))
+        user_name = self.get_flickr_username()
+        print("Flickr user %s has %s images matching search, selected page %s" % (user_name, num_photos, random_page))
+
+        try:
+            ps_page = self.__flickr.search_user_photos(self.__user_info["person"]["id"], text, random_page)
+        except:
+            print("Failed to retrieve user search from Flickr")
+            traceback.print_exc()
+            raise Exception("Failed to retrieve user search from Flickr")
+
+        num_images = len(ps_page["photos"]["photo"])
+        if num_images == 0:
+            print("Page has zero images, cannot continue")
+            raise Exception("Page has zero images, cannot continue")
+
+        random_image_num = random.randint(0, num_images - 1)
+        random_image = ps_page["photos"]["photo"][random_image_num]
+
+        return random_image
+
 
     def get_random_photoset_image(self):
         num_photos = self.__user_info["person"]["photos"]["count"]["_content"]
@@ -380,9 +437,21 @@ def get_random_person(config, flickr):
     return flickr_id, twitter_id, user_info
 
 
-def find_and_tweet_image(config, sources, flickr, twitter, respond_to_user=None, respond_to_id=None):
-    source = get_random_source(sources)
-    random_image = source.get_random_image()
+def find_and_tweet_image(config, sources, flickr, twitter, search_term=None, respond_to_user=None, respond_to_id=None):
+
+    # TODO: Move the retry count to the config
+    for i in range(0, 5):
+        source = get_random_source(sources)
+
+        if search_term is None:
+            random_image = source.get_random_image()
+        else:
+            random_image = source.get_random_search_image(text=search_term)
+        if source is not None and random_image is not None:
+            break
+
+    if random_image is None:
+        raise Exception("No images found")
 
     print("Selected Flickr ID: %s, Twitter User: %s" % (source.get_flickr_id(), source.get_twitter_id()))
 
@@ -409,6 +478,15 @@ def check_translations(translations, mention_text):
             return True
     return False
 
+
+def isolate_search_term(s):
+    try:
+        s = s.replace(",", "")
+        s = s[s.index(" of ")+4:]
+        s = s[:s.index(" ")]
+        return s
+    except ValueError as ex:
+        return None
 
 def respond_to_mentions(config, sources, translations, flickr, twitter, since_id=None):
     mentions = twitter.get_mentions(since_id=since_id)
