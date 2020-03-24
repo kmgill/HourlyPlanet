@@ -500,8 +500,8 @@ def respond_to_mentions(config, sources, translations, flickr, twitter, since_id
         if mention["id"] > id:
             id = mention["id"]
 
-        orig_mention_text = mention_text
         mention_text = mention["text"].lower()
+        orig_mention_text = mention_text
         mention_text = re.sub('p+', 'p', mention_text)
         mention_text = re.sub('l+', 'l', mention_text)
         mention_text = re.sub('e+', 'e', mention_text)
