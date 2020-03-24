@@ -1,5 +1,8 @@
 """
 Copyright 2020 Kevin M. Gill
+Twitter: @kevinmgill
+Instagram: @apoapsys
+Flickr: https://www.flickr.com/photos/kevinmgill/
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,6 +33,9 @@ random.seed()
 
 
 class Util:
+    """
+    Basic static utility functions
+    """
 
     __alphabet = '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
     __base_count = len(__alphabet)
@@ -69,6 +75,9 @@ class Util:
 
 
 class Flickr:
+    """
+    Lightweight Flickr API implementation
+    """
 
     REST_BASE_URL = 'https://www.flickr.com/services/rest/'
     PHOTOS_URL_TEMPLATE = "https://www.flickr.com/photos/{userid}/{photoid}"
@@ -79,6 +88,10 @@ class Flickr:
         self.page_size = config.get("flickr", "flickr.page_size")
 
     def verify_credentials(self):
+        """
+        Simple method to verify the Flickr API key is still active and allowed.
+        :return: True if the response received an HTTP status code of 200
+        """
         resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.test.echo",
             "api_key": self.__apikey,
@@ -88,6 +101,11 @@ class Flickr:
         return resp.status_code == 200
 
     def get_user_info(self, user_id):
+        """
+        Fetches information about a Flickr user
+        :param user_id: Flickr numeric id
+        :return: information about a Flickr user
+        """
         resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.people.getInfo",
             "api_key": self.__apikey,
@@ -107,6 +125,15 @@ class Flickr:
         return user_info
 
     def search_user_photos(self, user_id, text, page=1, page_size=None):
+        """
+        Searches user photostream photos using full-text search
+        :param user_id: Flickr numeric id
+        :param text: Full-text search term
+        :param page: Results page number
+        :param page_size: Number of results per page (default determined by config.ini)
+        :return: A list of matching photos
+        """
+
         if text is None or len(text) == 0:
             raise Exception("Invalid zero-length search term used.")
 
@@ -135,6 +162,12 @@ class Flickr:
         return ps
 
     def get_photostream(self, user_id, page=1):
+        """
+        Fetches images from a Flickr user's photostream
+        :param user_id: Flickr numeric id
+        :param page: Results page number
+        :return: A list of photos
+        """
         resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.people.getPublicPhotos",
             "api_key": self.__apikey,
@@ -157,6 +190,13 @@ class Flickr:
         return ps
 
     def get_group_photos(self, group_id, page=1):
+        """
+        Fetches photos from a Flickr group pool
+        :param group_id: Group id
+        :param page: Results page number
+        :return: A list of photos
+        """
+
         resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.groups.pools.getPhotos",
             "api_key": self.__apikey,
@@ -179,6 +219,13 @@ class Flickr:
         return ps
 
     def get_album_info(self, user_id, photoset_id):
+        """
+        Fetches information about a Flickr album
+        :param user_id: Flickr numeric id
+        :param photoset_id: Flickr album numeric id
+        :return: Information about the Flickr album
+        """
+
         resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.photosets.getInfo",
             "api_key": self.__apikey,
@@ -198,6 +245,14 @@ class Flickr:
         return ps
 
     def get_album_photos(self, user_id, photoset_id, page=1):
+        """
+        Fetches photos from a Flickr album
+        :param user_id: A Flickr numeric user id
+        :param photoset_id: Flickr album numeric album id
+        :param page: Results page number
+        :return: A list of photos
+        """
+
         resp = requests.get(Flickr.REST_BASE_URL, params={
             "method": "flickr.photosets.getPhotos",
             "api_key": self.__apikey,
@@ -222,15 +277,30 @@ class Flickr:
 
     @staticmethod
     def make_image_link(image):
+        """
+        Builds a full Flickr image page link
+        :param image: Image info dict
+        :return: A URL to the image on Flickr
+        """
+
         return Flickr.PHOTOS_URL_TEMPLATE.format(userid=image["owner"],
                                                                          photoid=image["id"])
 
     @staticmethod
     def make_shortened_image_link(image):
+        """
+        Builds a shortened Flickr image page link
+        :param image: Image info dict
+        :return: A shortened URL to the image on Flickr
+        """
+
         return Flickr.PHOTOS_SHORTENED_URL_TEMPLATE.format(base58photoid=Util.encode_base58(int(image["id"])))
 
 
 class Twitter:
+    """
+    Simplified proxy to TwitterAPI implementing functions required by the application
+    """
 
     def __init__(self, config):
         self.__api = TwitterAPI(config.get("twitter", "twitter.consumer_key"),
@@ -239,10 +309,21 @@ class Twitter:
                                 config.get("twitter", "twitter.access_secret"))
 
     def verify_credentials(self):
+        """
+        Validates current API credentials
+        :return: True if an HTTP status code of 200 is returned from Twitter
+        """
         r = self.__api.request('account/verify_credentials')
         return r.status_code == 200
 
     def tweet_text(self, status, respond_to_user=None, respond_to_id=None):
+        """
+        Sends a text-only tweet
+        :param status: The tweet text to be posted
+        :param respond_to_user: User being responded to. None if not a response.
+        :param respond_to_id: Tweet being reponded to. None if not a response.
+        :return: True if the Twitter API returned an HTTP 200 status.
+        """
         if respond_to_user is not None:
             status = "Hi, %s\n\n%s"%(respond_to_user, status)
         r = self.__api.request('statuses/update',
@@ -306,18 +387,35 @@ class Source:
             raise Exception()
 
     def pick_random_album_in_source(self):
+        """
+        Picks a random album from a list of albums. Raises an exception if there are no albums
+        :return: An album
+        """
         if "albums" not in self.source:
             raise Exception("No albums found for source")
 
         return self.source["albums"][random.randint(0, len(self.source["albums"]) - 1)]
 
     def get_twitter_id(self):
+        """
+        Returns the source's twitter id
+        :return: The source's twitter id
+        """
         return self.__source["twitter_id"]
 
     def get_flickr_id(self):
+        """
+        Returns the source's flickr id
+        :return: The source's flickr id
+        """
         return self.__source["flickr_id"]
 
     def get_flickr_username(self):
+        """
+        Returns the Flickr user's username. Attempts to use the 'realname' property, but will fall back to
+        using the 'username' property.
+        :return: The Flickr user's username
+        """
         if self.__user_info["person"]["realname"]["_content"] is None or len(self.__user_info["person"]["realname"]["_content"]) == 0:
             return self.__user_info["person"]["username"]["_content"]
         else:
@@ -421,31 +519,6 @@ class Source:
         return random_image
 
 
-def get_random_person(config, flickr):
-    """
-    User Ids need to be a comma delimited list, no spaces. Each is is a colon (:) delimited list of Flickr ID and Twitter username
-    Example:
-
-    [people]
-    people.user_ids=53460575@N03:@kevinmgill,136797589@N04:@_TheSeaning
-    """
-    user_ids = config.get("people", "people.user_ids")
-    user_ids = user_ids.split(",")
-    user_id = user_ids[random.randint(0, len(user_ids) - 1)]
-
-    flickr_id = user_id.split(":")[0]
-    twitter_id = user_id.split(":")[1]
-
-    try:
-        user_info = flickr.get_user_info(flickr_id)
-    except:
-        print("Failed to retrieve user information from Flickr")
-        traceback.print_exc()
-        sys.exit(1)
-
-    return flickr_id, twitter_id, user_info
-
-
 def find_and_tweet_image(config, sources, flickr, twitter, search_term=None, respond_to_user=None, respond_to_id=None):
 
     source = None
@@ -487,15 +560,32 @@ def find_and_tweet_image(config, sources, flickr, twitter, search_term=None, res
     twitter.tweet_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
 
 
-def check_translations(translations, mention_text):
-    for please in translations["translations"]["please"]:
-        please = please.lower()
-        if please in mention_text:
+def check_translations(translations, mention_text, base_word="please"):
+    """
+    Iterates over the translated words and checks whether any exist within the text.
+    Does not yet deal with alternate encoding.
+    :param translations: A list of translations
+    :param mention_text: The tweet text
+    :param base_word: The word being translated. Must exist within the translations struct.
+    :return: True if any of the translated words exist within the text
+    """
+    if base_word not in translations["translations"]:
+        raise Exception("Baseword '%s' does not exist in the translation struct"%base_word)
+
+    for translation in translations["translations"][base_word]:
+        translation = translation.lower()
+        if translation in mention_text:
             return True
     return False
 
 
 def isolate_search_term_following(s, following):
+    """
+    Attempts to isolate a search term that follows a specific word.
+    :param s: The tweet text
+    :param following: A string that would precede a search term (e.g. 'of')
+    :return: A search term or None is one wasn't found
+    """
     try:
         s = s.replace(",", "")
         s = s[s.index(following)+len(following):]
@@ -504,8 +594,14 @@ def isolate_search_term_following(s, following):
     except ValueError as ex:
         return None
 
+
 # TODO: Longer term this should probably be regex
 def isolate_search_term(s):
+    """
+    Tries simple methods to determine a search term within a tweet.
+    :param s: The tweet text
+    :return: The search term or None if one wasn't found.
+    """
     st = isolate_search_term_following(s, " of the ")
     if st is not None:
         return st
@@ -518,8 +614,22 @@ def isolate_search_term(s):
     if st is not None:
         return st
 
+    return None
+
 
 def respond_to_mentions(config, sources, translations, flickr, twitter, since_id=None):
+    """
+    Checks for and responds to Twitter mentions asking for images. The mention must include 'please' or an internationalized translation
+    of the word. It will also attempt (via a simple method) to determine if the user is searching for something specific and return
+    a matching picture as found by Flickr's search algorithm.
+    :param config: A configuration instance
+    :param sources: A list of sources
+    :param translations: A translations dict
+    :param flickr: An instance of the Flickr API
+    :param twitter: An instance of the Twitter API
+    :param since_id: The last seen tweet id from the previous run
+    :return: The highest id of the mentions processed during this run
+    """
     mentions = twitter.get_mentions(since_id=since_id)
 
     id = since_id
@@ -546,6 +656,12 @@ def respond_to_mentions(config, sources, translations, flickr, twitter, since_id
 
 
 def load_sources(source_file, flickr):
+    """
+    Loads a sources YAML file
+    :param source_file: Path leading to a sources YAML file
+    :param flickr: An initialized Flickr instance
+    :return: A list of sources
+    """
     sources = []
     with open(source_file) as f:
         d = f.read()
@@ -559,12 +675,23 @@ def load_sources(source_file, flickr):
 
 
 def load_translations(translations_file):
+    """
+    Loads a translations YAML file
+    :param translations_file: Path leading to a translations YAML file
+    :return: The translations
+    """
     with open(translations_file) as f:
         d = f.read()
         translations = yaml.load(d)
     return translations
 
+
 def get_random_source(sources):
+    """
+    Returns a random source from a list of sources
+    :param sources: A list of sources
+    :return: A random source
+    """
     if sources is None or len(sources) == 0:
         raise Exception("No sources found")
 
@@ -572,6 +699,10 @@ def get_random_source(sources):
 
 
 def validate():
+    """
+    Performs a basic high-level validation of services
+    :return: A string containing the validation results
+    """
     conditions = []
 
     try:
