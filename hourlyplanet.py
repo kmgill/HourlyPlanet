@@ -282,6 +282,15 @@ class Twitter:
         return r.json()
 
 
+class NoPhotosFoundException(Exception):
+    def __init__(self, message):
+        Exception.__init__(self, message)
+
+
+class NoAlbumsFoundException(Exception):
+    def __init__(self, message):
+        Exception.__init__(self, message)
+
 
 class Source:
 
@@ -319,10 +328,10 @@ class Source:
 
     def get_random_album(self):
         if not self.user_has_albums():
-            raise Exception("Cannot get random album if user has not albums.")
+            raise NoAlbumsFoundException("Cannot get random album if user has not albums.")
 
         if len(self.__source["albums"]) == 0:
-            raise Exception("User has no albums")
+            raise NoAlbumsFoundException("User has no albums")
 
         random_album_id = self.__source["albums"][random.randint(0, len(self.__source["albums"]) - 1)]
         album_info = self.__flickr.get_album_info(self.get_flickr_id(), random_album_id)
@@ -354,7 +363,7 @@ class Source:
         num_images = len(ps_page["photos"]["photo"])
         if num_images == 0:
             print("Page has zero images, cannot continue")
-            raise Exception("Page has zero images, cannot continue")
+            raise NoPhotosFoundException("Page has zero images, cannot continue")
 
         random_image_num = random.randint(0, num_images - 1)
         random_image = ps_page["photos"]["photo"][random_image_num]
@@ -379,7 +388,7 @@ class Source:
         num_images = len(ps_page["photos"]["photo"])
         if num_images == 0:
             print("Page has zero images, cannot continue")
-            raise Exception("Page has zero images, cannot continue")
+            raise NoPhotosFoundException("Page has zero images, cannot continue")
 
         random_image_num = random.randint(0, num_images - 1)
         random_image = ps_page["photos"]["photo"][random_image_num]
@@ -404,7 +413,7 @@ class Source:
         num_images = len(al_page["photoset"]["photo"])
         if num_images == 0:
             print("Page has zero images, cannot continue")
-            raise Exception("Page has zero images, cannot continue")
+            raise NoPhotosFoundException("Page has zero images, cannot continue")
 
         random_image_num = random.randint(0, num_images - 1)
         random_image = al_page["photoset"]["photo"][random_image_num]
@@ -445,7 +454,10 @@ def find_and_tweet_image(config, sources, flickr, twitter, search_term=None, res
         # TODO: Move the retry count to the config
         for i in range(0, 5):
             source = get_random_source(sources)
-            random_image = source.get_random_search_image(text=search_term)
+            try:
+                random_image = source.get_random_search_image(text=search_term)
+            except NoPhotosFoundException as ex:
+                pass
             if source is not None and random_image is not None:
                 break
 
