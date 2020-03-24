@@ -452,7 +452,7 @@ def find_and_tweet_image(config, sources, flickr, twitter, search_term=None, res
     random_image = None
     if search_term is not None:
         # TODO: Move the retry count to the config
-        for i in range(0, 5):
+        for i in range(0, 15):
             source = get_random_source(sources)
             try:
                 random_image = source.get_random_search_image(text=search_term)
