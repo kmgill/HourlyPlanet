@@ -62,16 +62,25 @@ class TestSearchTermMatching(unittest.TestCase):
         self.assertEqual(hp.find_search_term("Can I have an image of Messier 123, please", self.translations), "messier 123")
         self.assertEqual(hp.find_search_term("Can I please have an image of the Meathook Galaxy", self.translations), "meathook galaxy")
         self.assertEqual(hp.find_search_term("Can I have an image of an elliptical galaxy, please", self.translations), "elliptical galaxy")
+        self.assertEqual(hp.find_search_term("hi please show me a picture of uy scuti", self.translations), "uy scuti")
+        self.assertEqual(hp.find_search_term("Hey @hourlycosmos, how about a photo of Titan please?", self.translations), "titan")
+        self.assertEqual(hp.find_search_term("Try again with a photo of Titan please @hourlycosmos", self.translations), "titan")
+        self.assertEqual(hp.find_search_term("Hey @hourlycosmos can I have a picture of a Galaxy please?", self.translations), "galaxy")
+        self.assertEqual(hp.find_search_term("Hi @hourlycosmos, can I have a photo of InSight Lander please?", self.translations), "insight lander")
 
     def test_search_term_matching_i18n(self):
         # German
-        self.assertIsNone(hp.find_search_term("Kann ich bitte ein Bild von Jupiter haben?", self.translations))
+        self.assertEqual(hp.find_search_term("Kann ich bitte ein Bild von Jupiter haben?", self.translations), "jupiter haben")
 
         # Spanish
-        self.assertIsNone(hp.find_search_term("Puedo tener una foto de Jupiter, por favor", self.translations))
+        self.assertEqual(hp.find_search_term("Puedo tener una foto de Jupiter, por favor", self.translations), "jupiter")
+
+        # Italian
+        self.assertEqual(hp.find_search_term("Posso avere una foto di Jupiter, per favore", self.translations), "jupiter") # Giove
 
 
 if __name__ == '__main__':
+
     unittest.main()
 
 

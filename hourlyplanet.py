@@ -586,13 +586,21 @@ def check_translations(translations, mention_text, base_word="please"):
     return False
 
 
+def find_search_term_of(s, translations):
+    for translation in translations["translations"]["of"]:
+        m = re.search("(?<= %s )[ \w]+"%translation, s)
+        if m is not None:
+            return m
+    return None
+
+
 def find_search_term(s, translations):
     """
-    Tries simple methods to determine a search term within a tweet.
+    Tries simple methods to determine a search term within a tweet. Partial support for i18n.
     :param s: The tweet text
     :return: The search term or None if one wasn't found.
     """
-    m = re.search("(?<= of )[ \w]+", s)
+    m = find_search_term_of(s, translations)
     if m is None:
         return None
     t = m.group(0)
@@ -604,6 +612,8 @@ def find_search_term(s, translations):
     for translation in translations["translations"]["please"]:
         translation = translation.lower()
         t = re.sub(r" %s"%translation, "", t)
+
+    t = t.strip()
 
     return t
 

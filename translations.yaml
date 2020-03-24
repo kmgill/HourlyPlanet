@@ -26,3 +26,8 @@ translations:
     - "asseblief"         # Afrikaans
     - "παρακαλούμε"       # Greek
     - "παρακαλώ"          # Greek                  (Google Translate)
+  of:
+    - "of"                # English                (Google Translate)
+    - "de"                # Spanish                (Google Translate)
+    - "von"               # German                 (Google Translate)
+    - "di"                # Italian                (Google Translate)
