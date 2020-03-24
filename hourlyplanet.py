@@ -495,14 +495,29 @@ def check_translations(translations, mention_text):
     return False
 
 
-def isolate_search_term(s):
+def isolate_search_term_following(s, following):
     try:
         s = s.replace(",", "")
-        s = s[s.index(" of ")+4:]
+        s = s[s.index(following)+len(following):]
         s = s[:s.index(" ")]
         return s
     except ValueError as ex:
         return None
+
+# TODO: Longer term this should probably be regex
+def isolate_search_term(s):
+    st = isolate_search_term_following(s, " of the ")
+    if st is not None:
+        return st
+
+    st = isolate_search_term_following(s, " of a ")
+    if st is not None:
+        return st
+
+    st = isolate_search_term_following(s, " of ")
+    if st is not None:
+        return st
+
 
 def respond_to_mentions(config, sources, translations, flickr, twitter, since_id=None):
     mentions = twitter.get_mentions(since_id=since_id)
