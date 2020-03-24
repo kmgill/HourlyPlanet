@@ -18,6 +18,7 @@ limitations under the License.
 """
 
 import sys
+import os
 import requests
 import ConfigParser
 import math
@@ -43,6 +44,8 @@ class Util:
     # https://gist.github.com/ianoxley/865912
     @staticmethod
     def encode_base58(num):
+        if type(num) != int and type(num) != long :
+            raise TypeError("Value must be an integer")
         encode = ''
         if num < 0:
             return ''
@@ -59,8 +62,12 @@ class Util:
 
     @staticmethod
     def load_image_data(path):
+        if not os.path.exists(path):
+            raise IOError("Path not found: %s, Cannot load image"%path)
+
         with open(path, 'rb') as p:
             data = p.read()
+
         return data
 
     @staticmethod
@@ -579,42 +586,26 @@ def check_translations(translations, mention_text, base_word="please"):
     return False
 
 
-def isolate_search_term_following(s, following):
-    """
-    Attempts to isolate a search term that follows a specific word.
-    :param s: The tweet text
-    :param following: A string that would precede a search term (e.g. 'of')
-    :return: A search term or None is one wasn't found
-    """
-    try:
-        s = s.replace(",", "")
-        s = s[s.index(following)+len(following):]
-        s = s[:s.index(" ")]
-        return s
-    except ValueError as ex:
-        return None
-
-
-# TODO: Longer term this should probably be regex
-def isolate_search_term(s):
+def find_search_term(s, translations):
     """
     Tries simple methods to determine a search term within a tweet.
     :param s: The tweet text
     :return: The search term or None if one wasn't found.
     """
-    st = isolate_search_term_following(s, " of the ")
-    if st is not None:
-        return st
+    m = re.search("(?<= of )[ \w]+", s)
+    if m is None:
+        return None
+    t = m.group(0)
+    if t is None or len(t) == 0:
+        return None
+    t = t.lower()
+    t = re.sub(r"^(an|a|the) ", "", t)
 
-    st = isolate_search_term_following(s, " of a ")
-    if st is not None:
-        return st
+    for translation in translations["translations"]["please"]:
+        translation = translation.lower()
+        t = re.sub(r" %s"%translation, "", t)
 
-    st = isolate_search_term_following(s, " of ")
-    if st is not None:
-        return st
-
-    return None
+    return t
 
 
 def respond_to_mentions(config, sources, translations, flickr, twitter, since_id=None):
@@ -647,7 +638,7 @@ def respond_to_mentions(config, sources, translations, flickr, twitter, since_id
         respond_to_id = mention["id"]
         respond_to_user = "@%s" % mention["user"]["screen_name"]
         if check_translations(translations, mention_text) and mention["id"] > since_id:
-            search_term = isolate_search_term(orig_mention_text)
+            search_term = find_search_term(orig_mention_text)
             find_and_tweet_image(config, sources, flickr, twitter, search_term=search_term, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
         if "status check" in mention_text and mention["id"] > since_id:
             status = validate()
@@ -747,6 +738,7 @@ def validate():
         conditions.append("Twitter Test: FAIL")
 
     return "\n".join(conditions)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
