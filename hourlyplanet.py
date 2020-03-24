@@ -648,7 +648,7 @@ def respond_to_mentions(config, sources, translations, flickr, twitter, since_id
         respond_to_id = mention["id"]
         respond_to_user = "@%s" % mention["user"]["screen_name"]
         if check_translations(translations, mention_text) and mention["id"] > since_id:
-            search_term = find_search_term(orig_mention_text)
+            search_term = find_search_term(orig_mention_text, translations)
             find_and_tweet_image(config, sources, flickr, twitter, search_term=search_term, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
         if "status check" in mention_text and mention["id"] > since_id:
             status = validate()
