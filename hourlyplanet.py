@@ -332,7 +332,7 @@ class Twitter:
         Sends a text-only tweet
         :param status: The tweet text to be posted
         :param respond_to_user: User being responded to. None if not a response.
-        :param respond_to_id: Tweet being reponded to. None if not a response.
+        :param respond_to_id: Tweet being responded to. None if not a response.
         :return: True if the Twitter API returned an HTTP 200 status.
         """
         if respond_to_user is not None:
@@ -342,7 +342,17 @@ class Twitter:
         print('UPDATE STATUS SUCCESS' if r.status_code == 200 else 'UPDATE STATUS FAILURE: ' + r.text)
 
 
-    def tweet_image(self, title, source, shortened_image_link, imagePath="image.jpg", respond_to_user=None, respond_to_id=None):
+    def tweet_image(self, title, source, shortened_image_link, image_path="image.jpg", respond_to_user=None, respond_to_id=None):
+        """
+        Tweets an image and Flickr photo title
+        :param title: The photo title
+        :param source: The Flickr source dict
+        :param shortened_image_link: A URL to the source image on Flickr
+        :param image_path: A path to the image to be tweeted
+        :param respond_to_user: A user to be responded to. None if not a response.
+        :param respond_to_id: ID of the tweet being responded to. None if not a response.
+        :return: True if the Twitter API returned an HTTP 200 status.
+        """
         username = source.get_flickr_username()
         twitter_id = source.get_twitter_id()
         
@@ -353,7 +363,7 @@ class Twitter:
         else:
             text = "Hi, %s\n\n%s - From %s %s - %s" % (respond_to_user, title, username, twitter_id, shortened_image_link)
 
-        data = Util.load_image_data(imagePath)
+        data = Util.load_image_data(image_path)
 
         r = self.__api.request('media/upload', None, {'media': data})
         print('UPLOAD MEDIA SUCCESS' if r.status_code == 200 else 'UPLOAD MEDIA FAILURE: ' + r.text)
@@ -364,7 +374,12 @@ class Twitter:
             print('UPDATE STATUS SUCCESS' if r.status_code == 200 else 'UPDATE STATUS FAILURE: ' + r.text)
 
     def get_mentions(self, since_id=None, count=100):
-
+        """
+        Retrieves a list of recent Twitter mentions since the ID of the provided tweet.
+        :param since_id: An identifier of the last reviewed mention (on last run)
+        :param count: A maximum of mentioned to be returned by the API
+        :return: A list of tweets
+        """
         params = {'count':count}
         if since_id is not None and since_id > 0:
             params["since_id"] = since_id
@@ -435,9 +450,18 @@ class Source:
             return self.__user_info["person"]["realname"]["_content"]
 
     def user_has_albums(self):
+        """
+        Returns true if the source has configured albums. Does not check whether the user actually has albums on Flickr.
+        :return: true if the source has configured albums
+        """
         return "albums" in self.__source and len(self.__source["albums"]) > 0
 
     def get_random_album(self):
+        """
+        Returns a random album from a list of configured albums. Does not check for additional albums on Flickr for
+        the user.
+        :return: A random album from a list of configured albums.
+        """
         if not self.user_has_albums():
             raise NoAlbumsFoundException("Cannot get random album if user has not albums.")
 
