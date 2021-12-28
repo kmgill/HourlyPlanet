@@ -28,7 +28,7 @@ from TwitterAPI import TwitterAPI
 import argparse
 import re
 import yaml
-
+import unidecode
 
 class Util:
     """
@@ -43,7 +43,13 @@ class Util:
         """
         Returns a random integer between the specified min and max, inclusive of both
         """
-        return int(round((map(ord, os.urandom(1))[0]) / 255.0 * (max - min) + min))
+        print("Finding random between %f and %f"%(min, max))
+        if min == max:
+            return min
+        elif max == 0:
+            return 0
+        else:
+            return int(round((map(ord, os.urandom(1))[0]) / 255.0 * (max - min) + min))
 
     # https://gist.github.com/ianoxley/865912
     @staticmethod
@@ -445,9 +451,9 @@ class Source:
         :return: The Flickr user's username
         """
         if self.__user_info["person"]["realname"]["_content"] is None or len(self.__user_info["person"]["realname"]["_content"]) == 0:
-            return self.__user_info["person"]["username"]["_content"]
+            return unidecode.unidecode(self.__user_info["person"]["username"]["_content"])
         else:
-            return self.__user_info["person"]["realname"]["_content"]
+            return unidecode.unidecode(self.__user_info["person"]["realname"]["_content"])
 
     def user_has_albums(self):
         """
@@ -486,6 +492,7 @@ class Source:
         num_photos = int(search_photos["photos"]["total"])
         random_page = Util.randint(0, int(math.ceil(float(num_photos) / float(flickr.page_size))))
         user_name = self.get_flickr_username()
+        
         print("Flickr user %s has %s images matching search, selected page %s" % (user_name, num_photos, random_page))
 
         try:
