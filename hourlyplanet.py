@@ -1,5 +1,5 @@
 """
-Copyright 2020 Kevin M. Gill
+Copyright 2021 Kevin M. Gill
 Twitter: @kevinmgill
 Instagram: @apoapsys
 Flickr: https://www.flickr.com/photos/kevinmgill/
@@ -28,9 +28,6 @@ from TwitterAPI import TwitterAPI
 import argparse
 import re
 import yaml
-import random
-random.seed()
-
 
 
 class Util:
@@ -40,6 +37,13 @@ class Util:
 
     __alphabet = '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
     __base_count = len(__alphabet)
+
+    @staticmethod
+    def randint(min=0, max=255):
+        """
+        Returns a random integer between the specified min and max, inclusive of both
+        """
+        return int(round((map(ord, os.urandom(1))[0]) / 255.0 * (max - min) + min))
 
     # https://gist.github.com/ianoxley/865912
     @staticmethod
@@ -341,11 +345,13 @@ class Twitter:
     def tweet_image(self, title, source, shortened_image_link, imagePath="image.jpg", respond_to_user=None, respond_to_id=None):
         username = source.get_flickr_username()
         twitter_id = source.get_twitter_id()
-
+        
+        twitter_id = "" if twitter_id is None or len(twitter_id) == 0 else "(%s)"%twitter_id
+        
         if respond_to_user is None:
-            text = "%s - From %s (%s) - %s"%(title, username, twitter_id, shortened_image_link)
+            text = "%s - From %s %s - %s"%(title, username, twitter_id, shortened_image_link)
         else:
-            text = "Hi, %s\n\n%s - From %s (%s) - %s" % (respond_to_user, title, username, twitter_id, shortened_image_link)
+            text = "Hi, %s\n\n%s - From %s %s - %s" % (respond_to_user, title, username, twitter_id, shortened_image_link)
 
         data = Util.load_image_data(imagePath)
 
@@ -401,7 +407,7 @@ class Source:
         if "albums" not in self.source:
             raise Exception("No albums found for source")
 
-        return self.source["albums"][random.randint(0, len(self.source["albums"]) - 1)]
+        return self.source["albums"][Util.randint(0, len(self.source["albums"]) - 1)]
 
     def get_twitter_id(self):
         """
@@ -438,7 +444,7 @@ class Source:
         if len(self.__source["albums"]) == 0:
             raise NoAlbumsFoundException("User has no albums")
 
-        random_album_id = self.__source["albums"][random.randint(0, len(self.__source["albums"]) - 1)]
+        random_album_id = self.__source["albums"][Util.randint(0, len(self.__source["albums"]) - 1)]
         album_info = self.__flickr.get_album_info(self.get_flickr_id(), random_album_id)
         return album_info
 
@@ -454,7 +460,7 @@ class Source:
     def get_random_search_image(self, text):
         search_photos = self.__flickr.search_user_photos(self.get_flickr_id(), text, page_size=0)
         num_photos = int(search_photos["photos"]["total"])
-        random_page = random.randint(0, int(math.ceil(float(num_photos) / float(flickr.page_size))))
+        random_page = Util.randint(0, int(math.ceil(float(num_photos) / float(flickr.page_size))))
         user_name = self.get_flickr_username()
         print("Flickr user %s has %s images matching search, selected page %s" % (user_name, num_photos, random_page))
 
@@ -470,7 +476,7 @@ class Source:
             print("Page has zero images, cannot continue")
             raise NoPhotosFoundException("Page has zero images, cannot continue")
 
-        random_image_num = random.randint(0, num_images - 1)
+        random_image_num = Util.randint(0, num_images - 1)
         random_image = ps_page["photos"]["photo"][random_image_num]
 
         return random_image
@@ -478,7 +484,7 @@ class Source:
 
     def get_random_photoset_image(self):
         num_photos = self.__user_info["person"]["photos"]["count"]["_content"]
-        random_page = random.randint(0, int(math.ceil(float(num_photos) / float(flickr.page_size))))
+        random_page = Util.randint(0, int(math.ceil(float(num_photos) / float(flickr.page_size))))
         user_name = self.get_flickr_username()
 
         print("Flickr user %s has %s images, selected page %s" % (user_name, num_photos, random_page))
@@ -495,14 +501,14 @@ class Source:
             print("Page has zero images, cannot continue")
             raise NoPhotosFoundException("Page has zero images, cannot continue")
 
-        random_image_num = random.randint(0, num_images - 1)
+        random_image_num = Util.randint(0, num_images - 1)
         random_image = ps_page["photos"]["photo"][random_image_num]
 
         return random_image
 
     def get_random_album_image(self, album_info):
         num_photos = album_info["photoset"]["photos"]
-        random_page = random.randint(0, int(math.ceil(float(num_photos) / float(self.__flickr.page_size))))
+        random_page = Util.randint(0, int(math.ceil(float(num_photos) / float(self.__flickr.page_size))))
 
         user_name = self.get_flickr_username()
         album_name = album_info["photoset"]["title"]["_content"]
@@ -520,7 +526,7 @@ class Source:
             print("Page has zero images, cannot continue")
             raise NoPhotosFoundException("Page has zero images, cannot continue")
 
-        random_image_num = random.randint(0, num_images - 1)
+        random_image_num = Util.randint(0, num_images - 1)
         random_image = al_page["photoset"]["photo"][random_image_num]
 
         return random_image
@@ -540,15 +546,19 @@ def find_and_tweet_image(config, sources, flickr, twitter, search_term=None, res
                 pass
             if source is not None and random_image is not None:
                 break
-
-    # If there was no search term or a search yielded no images
-    if source is None or random_image is None:
-        source = get_random_source(sources)
-        random_image = source.get_random_image()
+        # If there was no search term or a search yielded no images
+        if source is None or random_image is None:
+            print("Couldn't find a suitable result for search term '%s'"%search_term)
+            twitter.tweet_text("Couldn't find your image. Try again!", respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+            return
 
     if random_image is None:
+        source = get_random_source(sources)
+        random_image = source.get_random_image()
+        
+    if random_image is None:        
         raise Exception("No images found")
-
+    
     print("Selected Flickr ID: %s, Twitter User: %s" % (source.get_flickr_id(), source.get_twitter_id()))
 
     shortened_image_link = flickr.make_shortened_image_link(random_image)
@@ -565,6 +575,7 @@ def find_and_tweet_image(config, sources, flickr, twitter, search_term=None, res
     Util.fetch_image_to_path(image_url, "image.jpg")
 
     twitter.tweet_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+
 
 
 def check_translations(translations, mention_text, base_word="please"):
@@ -653,6 +664,9 @@ def respond_to_mentions(config, sources, translations, flickr, twitter, since_id
         if "status check" in mention_text and mention["id"] > since_id:
             status = validate()
             twitter.tweet_text(status, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
+        if "fantastic, thank you" in mention_text and mention["id"] > since_id:
+            status = "You're welcome :-)"
+            twitter.tweet_text(status, respond_to_user=respond_to_user, respond_to_id=respond_to_id)
     return id
 
 
@@ -696,7 +710,7 @@ def get_random_source(sources):
     if sources is None or len(sources) == 0:
         raise Exception("No sources found")
 
-    return sources[random.randint(0, len(sources) - 1)]
+    return sources[Util.randint(0, len(sources) - 1)]
 
 
 def validate():
