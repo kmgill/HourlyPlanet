@@ -140,7 +140,61 @@ class Flickr:
             raise Exception("Error fetching Flickr user information. Reason: %s"%user_info["message"])
 
         return user_info
+    
+    def get_photo_contexts(self, photo_id):
+        """
+        Fetches info on a particular photo
+        """
+        resp = requests.get(Flickr.REST_BASE_URL, params={
+            "method": "flickr.photos.getAllContexts",
+            "api_key": self.__apikey,
+            "photo_id": photo_id,
+            "format": "json",
+            "nojsoncallback": 1
+        })
+        
+        if resp.status_code != 200:
+            raise Exception("Error fetching Flickr photo context information. Status code: %s"%(resp.status_code))
+        
+        photo_info = resp.json()
+        
+        if photo_info["stat"] != "ok":
+            raise Exception("Error fetching Flickr photo context information. Reason: %s"%photo_info["message"])
 
+        return photo_info 
+    
+    
+    def photo_is_in_albums(self, photo_id, album_ids):
+        sets = self.get_photo_contexts(photo_id)
+        if "set" not in sets:
+            return False
+        for album in sets["set"]:
+            if album["id"] in album_ids:
+                return True
+        return False
+    
+    def get_photo_info(self, photo_id):
+        """
+        Fetches info on a particular photo
+        """
+        resp = requests.get(Flickr.REST_BASE_URL, params={
+            "method": "flickr.photos.getInfo",
+            "api_key": self.__apikey,
+            "photo_id": photo_id,
+            "format": "json",
+            "nojsoncallback": 1
+        })
+        
+        if resp.status_code != 200:
+            raise Exception("Error fetching Flickr photo information. Status code: %s"%(resp.status_code))
+        
+        photo_info = resp.json()
+        
+        if photo_info["stat"] != "ok":
+            raise Exception("Error fetching Flickr photo information. Reason: %s"%photo_info["message"])
+
+        return photo_info 
+    
     def search_user_photos(self, user_id, text, page=1, page_size=None):
         """
         Searches user photostream photos using full-text search
@@ -164,6 +218,7 @@ class Flickr:
             "text": text,
             "format": "json",
             "nojsoncallback": 1,
+            "privacy_filter": 1,
             "extras": " url_sq,url_t,url_s,url_q,url_m,url_n,url_z,url_c,url_l,url_o,description,tags,owner_name",
             "per_page": page_size,
             "page": page
@@ -234,7 +289,8 @@ class Flickr:
             raise Exception("Error fetching Flickr group photo list. Reason: %s"%ps["message"])
 
         return ps
-
+    
+    
     def get_album_info(self, user_id, photoset_id):
         """
         Fetches information about a Flickr album
@@ -420,15 +476,21 @@ class Source:
             traceback.print_exc()
             raise Exception()
 
+    def get_album_list(self):
+        if "albums" not in self.__source:
+            return []
+        else:
+            return map(str, self.__source["albums"])
+
     def pick_random_album_in_source(self):
         """
         Picks a random album from a list of albums. Raises an exception if there are no albums
         :return: An album
         """
-        if "albums" not in self.source:
+        if "albums" not in self.__source:
             raise Exception("No albums found for source")
 
-        return self.source["albums"][Util.randint(0, len(self.source["albums"]) - 1)]
+        return self.__source["albums"][Util.randint(0, len(self.__source["albums"]) - 1)]
 
     def get_twitter_id(self):
         """
@@ -502,6 +564,8 @@ class Source:
             traceback.print_exc()
             raise Exception("Failed to retrieve user search from Flickr")
 
+        
+
         num_images = len(ps_page["photos"]["photo"])
         if num_images == 0:
             print("Page has zero images, cannot continue")
@@ -509,7 +573,14 @@ class Source:
 
         random_image_num = Util.randint(0, num_images - 1)
         random_image = ps_page["photos"]["photo"][random_image_num]
-
+    
+        # If the source has albums specified, we need to make sure we are only 
+        # picking from those. The Flickr search call doesn't let us limit to
+        # specific albums so we need to verify manually
+        if self.user_has_albums() is True:
+            if flickr.photo_is_in_albums(random_image["id"], self.get_album_list()) is False:
+                raise NoPhotosFoundException("Found image is not part of valid album")
+    
         return random_image
 
 
@@ -819,7 +890,7 @@ if __name__ == "__main__":
 
     sources = load_sources(args.sources, flickr)
     translations = load_translations(args.translations)
-
+    
     if args.respond is True:
         last_id = respond_to_mentions(config, sources, translations, flickr, twitter, since_id=args.sinceid)
         if last_id is not None and last_id > 0:
@@ -830,4 +901,5 @@ if __name__ == "__main__":
 
     if args.post is True:
         find_and_tweet_image(config, sources, flickr, twitter)
+    
 
