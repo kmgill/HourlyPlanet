@@ -86,7 +86,7 @@ class MastodonClient:
                                 untag=False)
         """
 
-    def post_image(self, title, source, shortened_image_link, image_path="image.jpg", respond_to_user=None, respond_to_id=None):
+    def post_image(self, title, source, shortened_image_link, image_path="image.jpg", respond_to_user=None, respond_to_id=None, alt_text=None):
 
         username = source.get_flickr_username()
         mastodon_id = source.get_mastodon_id()
@@ -98,7 +98,10 @@ class MastodonClient:
         else:
             text = "Hi, %s\n\n%s - From %s %s - %s" % (respond_to_user, title, username, mastodon_id, shortened_image_link)
 
-        media = self.mastodon.media_post(image_path, "image/jpeg")
+        if len(alt_text) > 1500:
+            alt_text = "%s..."%alt_text[:1497]
+
+        media = self.mastodon.media_post(image_path, "image/jpeg", description=alt_text)
         # TODO: Error checking? Returned dict doesn't appear to have a status
         self.post_text(text, respond_to_user=None, respond_to_id=None, media_id=media["id"])
 

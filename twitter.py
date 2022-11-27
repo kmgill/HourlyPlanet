@@ -67,7 +67,7 @@ class Twitter:
         print('UPDATE STATUS SUCCESS' if r.status_code == 200 else 'UPDATE STATUS FAILURE: ' + r.text)
 
 
-    def post_image(self, title, source, shortened_image_link, image_path="image.jpg", respond_to_user=None, respond_to_id=None):
+    def post_image(self, title, source, shortened_image_link, image_path="image.jpg", respond_to_user=None, respond_to_id=None, alt_text=None):
         """
         Tweets an image and Flickr photo title
         :param title: The photo title
@@ -95,6 +95,13 @@ class Twitter:
 
         if r.status_code == 200:
             media_id = r.json()['media_id']
+
+            if alt_text is not None:
+                if len(alt_text) > 1000:
+                    alt_text = "%s..."%alt_text[:997]
+                # Currently getting 'Invalid json payload' on this. Not sure why yet.
+                #r = self.__api.request('media/metadata/create', {'media_id': media_id, "alt_text": {"text":alt_text}})
+                #print(json.dumps(r.json(), indent=4, sort_keys=True, default=str))
             r = self.__api.request('statuses/update', {'status': text, 'media_ids': media_id, 'in_reply_to_status_id': respond_to_id})
             print('UPDATE STATUS SUCCESS' if r.status_code == 200 else 'UPDATE STATUS FAILURE: ' + r.text)
 

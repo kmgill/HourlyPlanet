@@ -28,6 +28,7 @@ import argparse
 import re
 import yaml
 from yaml import Loader
+import re
 
 from util import Util
 from flickr import Flickr, NoAlbumsFoundException, NoPhotosFoundException
@@ -35,6 +36,12 @@ from twitter import Twitter
 from mstdn import MastodonClient
 from source import Source
 
+# https://stackoverflow.com/questions/9662346/python-code-to-remove-html-tags-from-a-string
+CLEANR = re.compile('<.*?>') 
+
+def strip_html_tags(s):
+    cleantext = re.sub(CLEANR, '', s)
+    return cleantext
 
 def find_and_post_image(config, sources, flickr, twitter, search_term=None, respond_to_user=None, respond_to_id=None):
 
@@ -76,11 +83,12 @@ def find_and_post_image(config, sources, flickr, twitter, search_term=None, resp
 
     image_title = random_image["title"]
 
+    description = strip_html_tags(random_image["description"]["_content"])
     temp_jpg_file = "image_{pid}.jpg".format(pid=os.getpid())
     print("Selected image '%s' at %s" % (image_title, image_url))
     Util.fetch_image_to_path(image_url, temp_jpg_file)
 
-    twitter.post_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id, image_path=temp_jpg_file)
+    twitter.post_image(image_title, source, shortened_image_link, respond_to_user=respond_to_user, respond_to_id=respond_to_id, image_path=temp_jpg_file, alt_text=description)
 
     if os.path.exists(temp_jpg_file):
         os.unlink(temp_jpg_file)
