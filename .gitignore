@@ -1,4 +1,10 @@
 .idea
 *.pyc
 image.jpg
+image*.jpg
 last_mention_id.txt
+last_mention_id_mstdn.txt
+run_mastodon.log
+run.log
+sources.yaml.backup
+test-image.jpg

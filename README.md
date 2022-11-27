@@ -1,11 +1,10 @@
 # HourlyPlanet
 
-Hourlyplanet is a Python script which backs the Hourlycosmos Twitter account. It picks random images from the configured Flickr users photostreams or albums and tweets it with the description, name, Twitter @, and a shortened link to the source. The script will either do a direct post (`-p` option) or respond to Twitter mentions (`-r` option). Twitter mentions are checked if they contain the text 'please' and will respond if it detects it. 
+Hourlyplanet is a Python script which backs the Hourly Cosmos Twitter and Mastodon accounts. It picks random images from the configured Flickr users photostreams or albums and tweets it with the description, name, Twitter @, and a shortened link to the source. The script will either do a direct post (`-p` option) or respond to Twitter/Mastodon mentions (`-r` option). Social mentions are checked if they contain the text 'please' and will respond if it detects it. 
 
 ## Program Options
 ```
-usage: hourlyplanet.py [-h] [-c CONFIG] [-r] [-p] [-s SINCEID] [-w WRITEIDTO]
-                       [-S SOURCES]
+usage: hourlyplanet.py [-h] [-c CONFIG] [-r] [-p] [-s SINCEID] [-w WRITEIDTO] [-S SOURCES] [-t] [-i TRANSLATIONS] [-d DESTINATION]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -19,6 +18,11 @@ optional arguments:
                         Write most recent mention id to file
   -S SOURCES, --sources SOURCES
                         Specify an alternate sources yaml file
+  -t, --test            Run a status check
+  -i TRANSLATIONS, --translations TRANSLATIONS
+                        Specify an alternate translations yaml file
+  -d DESTINATION, --destination DESTINATION
+                        Destination social media (twitter, mastodon)
 
 ```
 ## Program Configuration
@@ -39,10 +43,15 @@ twitter.consumer_secret=<Twitter Consumer Secret>
 twitter.access_token=<Twitter Access Token>
 twitter.access_secret=<Twitter Access Secret>
 
+[mastodon]
+mastodon.baseurl=<Mastodon instance base url>
+mastodon.client_key=<Mastodon Client Key>
+mastodon.client_secret=<Mastodon Client Secret>
+mastodon.access_token=<Mastodon Access Token>
 ```
 
 ## Sources Configuration
-The `sources.yaml` file specifies the Flickr accounts used as sources for the program. For each source, it contains the person's Flickr ID in numeric form, their Twitter account name (@screenname), and optionally an array of album ids if not using the users photostream. You may also set a source as disabled if you need to temporarily pause pulling from that account.
+The `sources.yaml` file specifies the Flickr accounts used as sources for the program. For each source, it contains the person's Flickr ID in numeric form, their Twitter and Mastodon account names (@screenname), and optionally an array of album ids if not using the users photostream. You may also set a source as disabled if you need to temporarily pause pulling from that account.
 
 Example:
 ```yaml
@@ -50,15 +59,18 @@ sources:
   -
     flickr_id: '123456789@N05'
     twitter_id: '@TwitterPerson1'
+    mastodon_id: '@user1@mastodon.social'
     albums:
       - 72157712420147562
       - 72151947259511817
   -
     flickr_id: '987654321@N03'
     twitter_id: '@TwitterPerson2'
+    mastodon_id: '@user2@mastodon.social'
   -
     flickr_id: '987659876@N03'
     twitter_id: '@TwitterPerson3'
+    mastodon_id: ''
     disabled: true
 ```
 
