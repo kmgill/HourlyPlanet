@@ -27,7 +27,7 @@ import json
 import argparse
 import re
 import yaml
-from yaml import CLoader as Loader
+from yaml import Loader
 
 from util import Util
 from flickr import Flickr, NoAlbumsFoundException, NoPhotosFoundException
@@ -239,13 +239,15 @@ def validate():
     try:
         flickr = Flickr(config)
         conditions.append("Flickr: OK")
+
+        if flickr.verify_credentials():
+            conditions.append("Flickr Test: OK")
+        else:
+            conditions.append("Flickr Test: FAIL")
     except:
         conditions.append("Flickr: FAIL")
 
-    if flickr.verify_credentials():
-        conditions.append("Flickr Test: OK")
-    else:
-        conditions.append("Flickr Test: FAIL")
+    
 
     try:
         translations = load_translations(args.translations)
@@ -262,13 +264,15 @@ def validate():
     try:
         twitter = Twitter(config)
         conditions.append("Twitter: OK")
+
+        if twitter.verify_credentials():
+            conditions.append("Twitter Test: OK")
+        else:
+            conditions.append("Twitter Test: FAIL")
     except:
         conditions.append("Twitter: FAIL")
 
-    if twitter.verify_credentials():
-        conditions.append("Twitter Test: OK")
-    else:
-        conditions.append("Twitter Test: FAIL")
+
 
     return "\n".join(conditions)
 
